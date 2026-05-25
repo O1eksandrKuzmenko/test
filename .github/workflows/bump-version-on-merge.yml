@@ -9,6 +9,10 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   run:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref != 'bump-branch'
@@ -39,3 +43,32 @@ jobs:
           chmod +x scripts/bump-patch-version.sh
           NEW_VERSION=$(./scripts/bump-patch-version.sh)
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Push version bump via bump-branch PR
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B bump-branch
+          git add VERSION version.js
+          git commit -m "chore: bump patch version to ${NEW_VERSION}"
+          git push --force origin bump-branch
+
+          EXISTING_PR=$(gh pr list --head bump-branch --base dev --state open --json number -q '.[0].number' || true)
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr close "$EXISTING_PR"
+          fi
+
+          PR_URL=$(gh pr create \
+            --base dev \
+            --head bump-branch \
+            --title "chore: bump patch version to ${NEW_VERSION}" \
+            --body "Automated version bump after index.html change in #${{ github.event.pull_request.number }}.")
+          PR_NUMBER=$(basename "$PR_URL")
+
+          gh pr checks "$PR_NUMBER" --watch --interval 10
+          gh pr merge "$PR_NUMBER" --merge --delete-branch

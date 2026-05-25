@@ -13,12 +13,21 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     steps:
+      - name: Skip checks for automated bump PR
+        if: github.event_name == 'pull_request' && github.head_ref == 'bump-branch'
+        run: echo "Skipping CI for automated version bump PR."
+
       - uses: actions/checkout@v6
+        if: github.event_name != 'pull_request' || github.head_ref != 'bump-branch'
 
       - uses: actions/setup-node@v6
+        if: github.event_name != 'pull_request' || github.head_ref != 'bump-branch'
         with:
           node-version: "20"
           cache: npm
 
-      - run: npm ci
-      - run: npm test
+      - if: github.event_name != 'pull_request' || github.head_ref != 'bump-branch'
+        run: npm ci
+
+      - if: github.event_name != 'pull_request' || github.head_ref != 'bump-branch'
+        run: npm test
