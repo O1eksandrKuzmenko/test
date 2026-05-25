@@ -1,0 +1,53 @@
+# name: CI
+
+# on:
+#   pull_request:
+#     branches:
+#       - dev
+#   push:
+#     branches:
+#       - dev
+#   workflow_dispatch:
+#     inputs:
+#       skip_checks:
+#         description: No-op Lint and Test for bump-branch auto PR
+#         required: false
+#         type: boolean
+#         default: false
+
+# env:
+#   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# jobs:
+#   lint-and-test:
+#     name: Lint and Test
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Pass without checks (bump-branch auto PR)
+#         if: inputs.skip_checks == true || github.head_ref == 'bump-branch'
+#         run: echo "Lint and Test skipped for bump-branch — reporting success for required status check."
+
+#       - name: Checkout Repository
+#         if: inputs.skip_checks != true && github.head_ref != 'bump-branch'
+#         uses: actions/checkout@v6
+#         with:
+#           fetch-depth: 0
+
+#       - name: Setup Node.js
+#         if: inputs.skip_checks != true && github.head_ref != 'bump-branch'
+#         uses: actions/setup-node@v6
+#         with:
+#           node-version: '24'
+#           cache: npm
+
+#       - name: Install dependencies
+#         if: inputs.skip_checks != true && github.head_ref != 'bump-branch'
+#         run: npm ci
+
+#       - name: Lint
+#         if: inputs.skip_checks != true && github.head_ref != 'bump-branch'
+#         run: npm run lint
+
+#       - name: Run tests
+#         if: inputs.skip_checks != true && github.head_ref != 'bump-branch'
+#         run: npm run test

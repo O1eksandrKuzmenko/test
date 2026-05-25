@@ -1,0 +1,22 @@
+# name: Update Versions And Logs
+
+# on:
+#   pull_request:
+#     types: [closed]
+#     branches:
+#       - dev
+
+# env:
+#   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# jobs:
+#   run:
+#     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref != 'bump-branch'
+#     runs-on: ubuntu-latest
+#     name: Update ecommerce configs changelog
+
+#     steps:
+#       - name: Checkout Repository
+#         uses: actions/checkout@v6
+#         with:
+#           fetch-depth: 0
