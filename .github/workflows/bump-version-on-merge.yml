@@ -72,20 +72,19 @@ jobs:
             echo "Created PR #${PR_NUMBER}"
           fi
 
-          echo "Waiting for PR #${PR_NUMBER} checks and auto-merge..."
-          gh pr merge "$PR_NUMBER" --auto --merge --delete-branch
-
+          echo "Waiting for PR #${PR_NUMBER} to become mergeable..."
           for i in $(seq 1 60); do
-            STATE=$(gh pr view "$PR_NUMBER" --json state -q .state)
-            if [ "$STATE" = "MERGED" ]; then
+            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q .mergeStateStatus)
+            echo "Attempt ${i}/60: mergeStateStatus=${MERGE_STATE}"
+
+            if [ "$MERGE_STATE" = "CLEAN" ] || gh pr checks "$PR_NUMBER" >/dev/null 2>&1; then
+              gh pr merge "$PR_NUMBER" --merge --delete-branch
               echo "PR #${PR_NUMBER} merged into dev."
               exit 0
             fi
 
-            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q .mergeStateStatus)
-            echo "Attempt ${i}/60: state=${STATE}, mergeStateStatus=${MERGE_STATE}"
             sleep 10
           done
 
-          echo "Timed out waiting for PR #${PR_NUMBER} to merge."
+          echo "Timed out waiting to merge PR #${PR_NUMBER}."
           exit 1
