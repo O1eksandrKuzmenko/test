@@ -72,15 +72,20 @@ jobs:
             echo "Created PR #${PR_NUMBER}"
           fi
 
-          echo "Waiting for CI checks to appear on PR #${PR_NUMBER}..."
-          for i in $(seq 1 36); do
-            CHECK_COUNT=$(gh pr view "$PR_NUMBER" --json statusCheckRollup -q '.statusCheckRollup | length')
-            if [ "$CHECK_COUNT" -gt 0 ]; then
-              echo "Checks registered after ${i} attempt(s)."
-              break
+          echo "Waiting for PR #${PR_NUMBER} checks and auto-merge..."
+          gh pr merge "$PR_NUMBER" --auto --merge --delete-branch
+
+          for i in $(seq 1 60); do
+            STATE=$(gh pr view "$PR_NUMBER" --json state -q .state)
+            if [ "$STATE" = "MERGED" ]; then
+              echo "PR #${PR_NUMBER} merged into dev."
+              exit 0
             fi
+
+            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q .mergeStateStatus)
+            echo "Attempt ${i}/60: state=${STATE}, mergeStateStatus=${MERGE_STATE}"
             sleep 10
           done
 
-          gh pr checks "$PR_NUMBER" --watch --interval 10
-          gh pr merge "$PR_NUMBER" --merge --delete-branch
+          echo "Timed out waiting for PR #${PR_NUMBER} to merge."
+          exit 1
