@@ -60,15 +60,27 @@ jobs:
 
           EXISTING_PR=$(gh pr list --head bump-branch --base dev --state open --json number -q '.[0].number' || true)
           if [ -n "$EXISTING_PR" ]; then
-            gh pr close "$EXISTING_PR"
+            PR_NUMBER="$EXISTING_PR"
+            echo "Reusing open PR #${PR_NUMBER}"
+          else
+            PR_URL=$(gh pr create \
+              --base dev \
+              --head bump-branch \
+              --title "chore: bump patch version to ${NEW_VERSION}" \
+              --body "Automated version bump after index.html change in #${{ github.event.pull_request.number }}.")
+            PR_NUMBER="${PR_URL##*/}"
+            echo "Created PR #${PR_NUMBER}"
           fi
 
-          PR_URL=$(gh pr create \
-            --base dev \
-            --head bump-branch \
-            --title "chore: bump patch version to ${NEW_VERSION}" \
-            --body "Automated version bump after index.html change in #${{ github.event.pull_request.number }}.")
-          PR_NUMBER=$(basename "$PR_URL")
+          echo "Waiting for CI checks to appear on PR #${PR_NUMBER}..."
+          for i in $(seq 1 36); do
+            CHECK_COUNT=$(gh pr view "$PR_NUMBER" --json statusCheckRollup -q '.statusCheckRollup | length')
+            if [ "$CHECK_COUNT" -gt 0 ]; then
+              echo "Checks registered after ${i} attempt(s)."
+              break
+            fi
+            sleep 10
+          done
 
           gh pr checks "$PR_NUMBER" --watch --interval 10
           gh pr merge "$PR_NUMBER" --merge --delete-branch
