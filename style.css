@@ -27,6 +27,12 @@ h1 {
   margin-bottom: 0.75rem;
 }
 
+.note {
+  margin-top: 0.75rem;
+  color: #52525b;
+  font-size: 0.95rem;
+}
+
 code {
   font-size: 0.9em;
   background: #f4f4f5;
