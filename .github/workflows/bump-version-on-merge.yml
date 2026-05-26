@@ -36,14 +36,6 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Bump patch version
-        if: steps.check.outputs.changed == 'true'
-        id: bump
-        run: |
-          chmod +x scripts/bump-patch-version.sh
-          NEW_VERSION=$(./scripts/bump-patch-version.sh)
-          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Push version bump via bump-branch PR
         if: steps.check.outputs.changed == 'true'
         env:
@@ -78,32 +70,9 @@ jobs:
             echo "Created PR #${PR_NUMBER}"
           fi
 
-          echo "Waiting for CI checks on PR #${PR_NUMBER}..."
-          for i in $(seq 1 60); do
-            if gh pr checks "$PR_NUMBER" >/tmp/checks.txt 2>&1; then
-              cat /tmp/checks.txt
-              echo "All checks passed."
-              break
-            fi
-
-            if grep -q 'no checks reported' /tmp/checks.txt; then
-              echo "Attempt ${i}/60: checks not registered yet..."
-            else
-              cat /tmp/checks.txt
-              echo "Attempt ${i}/60: checks still pending..."
-            fi
-            sleep 10
-          done
-
-          gh pr update-branch "$PR_NUMBER" --merge 2>/dev/null || true
-          sleep 5
+          echo "Waiting for CI on PR #${PR_NUMBER}..."
+          sleep 30
+          gh pr checks "$PR_NUMBER" --watch --interval 10 || true
 
           echo "Merging PR #${PR_NUMBER} into dev..."
-          if gh pr merge "$PR_NUMBER" --merge --delete-branch; then
-            echo "PR #${PR_NUMBER} merged into dev."
-            exit 0
-          fi
-
-          echo "Regular merge blocked, retrying with admin bypass..."
           gh pr merge "$PR_NUMBER" --merge --delete-branch --admin
-          echo "PR #${PR_NUMBER} merged into dev."
