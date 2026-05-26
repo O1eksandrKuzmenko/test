@@ -48,16 +48,10 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git fetch origin dev
-          git checkout dev
-          git reset --hard origin/dev
-
-          chmod +x scripts/bump-patch-version.sh
-          NEW_VERSION=$(./scripts/bump-patch-version.sh)
 
           git checkout -B bump-branch
           git add VERSION version.js
@@ -78,32 +72,15 @@ jobs:
             echo "Created PR #${PR_NUMBER}"
           fi
 
-          echo "Waiting for CI checks on PR #${PR_NUMBER}..."
-          for i in $(seq 1 60); do
-            if gh pr checks "$PR_NUMBER" >/tmp/checks.txt 2>&1; then
-              cat /tmp/checks.txt
-              echo "All checks passed."
+          echo "Waiting for CI checks to appear on PR #${PR_NUMBER}..."
+          for i in $(seq 1 36); do
+            CHECK_COUNT=$(gh pr view "$PR_NUMBER" --json statusCheckRollup -q '.statusCheckRollup | length')
+            if [ "$CHECK_COUNT" -gt 0 ]; then
+              echo "Checks registered after ${i} attempt(s)."
               break
-            fi
-
-            if grep -q 'no checks reported' /tmp/checks.txt; then
-              echo "Attempt ${i}/60: checks not registered yet..."
-            else
-              cat /tmp/checks.txt
-              echo "Attempt ${i}/60: checks still pending..."
             fi
             sleep 10
           done
 
-          gh pr update-branch "$PR_NUMBER" --merge 2>/dev/null || true
-          sleep 5
-
-          echo "Merging PR #${PR_NUMBER} into dev..."
-          if gh pr merge "$PR_NUMBER" --merge --delete-branch; then
-            echo "PR #${PR_NUMBER} merged into dev."
-            exit 0
-          fi
-
-          echo "Regular merge blocked, retrying with admin bypass..."
-          gh pr merge "$PR_NUMBER" --merge --delete-branch --admin
-          echo "PR #${PR_NUMBER} merged into dev."
+          gh pr checks "$PR_NUMBER" --watch --interval 10
+          gh pr merge "$PR_NUMBER" --merge --delete-branch
